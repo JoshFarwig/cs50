@@ -24,7 +24,7 @@ def load_data(directory):
             people[row["id"]] = {
                 "name": row["name"],
                 "birth": row["birth"],
-                "movies": set()
+                "movies": set(),
             }
             if row["name"].lower() not in names:
                 names[row["name"].lower()] = {row["id"]}
@@ -38,7 +38,7 @@ def load_data(directory):
             movies[row["id"]] = {
                 "title": row["title"],
                 "year": row["year"],
-                "stars": set()
+                "stars": set(),
             }
 
     # Load stars
@@ -92,8 +92,58 @@ def shortest_path(source, target):
     If no possible path, returns None.
     """
 
-    # TODO
-    raise NotImplementedError
+    # state -> (people)
+    # actions -> (movies)
+    # result -> (new associated people from that movie)
+
+    visited = set()
+    solutions = []
+
+    start = Node(state=source, parent=None, action=None)
+    frontier = QueueFrontier()
+    frontier.add(start)
+
+    while True:
+
+        # Check frontier if empty
+        if frontier.empty():
+            return None
+
+        # if not empty, pop from frontier, and explore node
+        node = frontier.remove()
+
+        # Check if popped node in frontier is target
+        # also accomodates for srouce == target
+        if node.state == target:
+            return get_shortest_path(node)
+
+        visited.add(node.state)
+
+        # If not goal state, do BFS
+        for movie_id, person_id in neighbors_for_person(node.state):
+            if not frontier.contains_state(person_id) and person_id not in visited:
+                # Add node to frontier
+                child = Node(state=person_id, parent=node, action=movie_id)
+                frontier.add(child)
+                # if node is recognized as target, generate shortest path
+                if child.state == target:
+                    return get_shortest_path(child)
+
+
+def get_shortest_path(node):
+    actions = []
+    states = []
+
+    while node.parent is not None:
+        actions.append(node.action)
+        states.append(node.state)
+        node = node.parent
+
+    # Reverse since we are starting at the end / target node
+    actions.reverse()
+    states.reverse()
+
+    return list(zip(actions, states))
 
 
 def person_id_for_name(name):
