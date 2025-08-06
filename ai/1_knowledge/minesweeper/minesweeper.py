@@ -2,7 +2,7 @@ import itertools
 import random
 
 
-class Minesweeper():
+class Minesweeper:
     """
     Minesweeper game representation
     """
@@ -84,7 +84,7 @@ class Minesweeper():
         return self.mines_found == self.mines
 
 
-class Sentence():
+class Sentence:
     """
     Logical statement about a Minesweeper game
     A sentence consists of a set of board cells,
@@ -105,30 +105,45 @@ class Sentence():
         """
         Returns the set of all cells in self.cells known to be mines.
         """
-        raise NotImplementedError
+        # If count is equal to # of cells, we have # known mines
+        if len(self.cells) == self.count:
+            # return copy so we don't modify the original cells set
+            return self.cells.copy()
+        else:
+            return set()
 
     def known_safes(self):
         """
         Returns the set of all cells in self.cells known to be safe.
         """
-        raise NotImplementedError
+        # If count is equal to 0, we have # safe cells
+        if self.count == 0:
+            # return copy so we don't modify the original cells set
+            return self.cells.copy()
+        else:
+            return set()
 
     def mark_mine(self, cell):
         """
         Updates internal knowledge representation given the fact that
         a cell is known to be a mine.
         """
-        raise NotImplementedError
+        # If the cell is known to be a mine, we decrement count and remove it
+        if cell in self.cells:
+            self.count -= 1
+            self.cells.remove(cell)
 
     def mark_safe(self, cell):
         """
         Updates internal knowledge representation given the fact that
         a cell is known to be safe.
         """
-        raise NotImplementedError
+        # If the cell is known to be safe, we remove it and keep count the same
+        if cell in self.cells:
+            self.cells.remove(cell)
 
 
-class MinesweeperAI():
+class MinesweeperAI:
     """
     Minesweeper game player
     """
@@ -182,7 +197,79 @@ class MinesweeperAI():
             5) add any new sentences to the AI's knowledge base
                if they can be inferred from existing knowledge
         """
-        raise NotImplementedError
+        # 1,2) mark cell as move been made and safee
+        self.moves_made.add(cell)
+        self.mark_safe(cell)
+
+        # 3) add new sentence based on cell and count
+        # find all neighboring cells around main cell
+        neighbors = set()
+        for i in range(cell[0] - 1, cell[0] + 2):
+            for j in range(cell[1] - 1, cell[1] + 2):
+
+                # ignore the main cell itself
+                if (i, j) == cell:
+                    continue
+
+                # Add to neighbors if cell is in board bounds
+                if 0 <= i < self.height and 0 <= j < self.width:
+                    neighbors.add((i, j))
+
+        # this might not be nessicary? -> But they ask for undetermined squares
+
+        # if there exists a known mine, remove from neighbors and decrease count
+        for mine in self.mines:
+            if mine in neighbors:
+                neighbors.remove(mine)
+                count -= 1
+
+        # if there exists a known safe, remove from neighbors, keep count the same
+        for safe in self.safes:
+            if safe in neighbors:
+                neighbors.remove(safe)
+
+        # create the new sentence and add it to KB
+        if neighbors:
+            self.knowledge.append(Sentence(neighbors, count))
+
+        # 4,5) modify and change knowledge base
+        # keep infering until no new knowledge found
+        changed = True
+        while changed:
+            changed = False
+            new_sentences = []
+            # 4) mark any cells as mines of safes based on new KB
+            for sentence in self.knowledge:
+                mines = sentence.known_mines()
+                safes = sentence.known_safes()
+
+                if mines:
+                    for mine_cell in mines:
+                        self.mark_mine(mine_cell)
+                    changed = True
+
+                if safes:
+                    for safe_cell in safes:
+                        self.mark_safe(safe_cell)
+                    changed = True
+
+            # 5) add any new sentences based on KB if
+            # they can be inferred from existing K
+            # could be better optmizied by making knowledge base a set,
+            # skipping empty sentences, and doing some early exists
+            for s1 in self.knowledge:
+                for s2 in self.knowledge:
+                    if s1 != s2 and s1.cells.issubset(s2.cells):
+                        new_cells = s2.cells - s1.cells
+                        new_count = s2.count - s1.count
+
+                        if new_cells and new_count >= 0:
+                            new_sentence = Sentence(new_cells, new_count)
+                            if new_sentence not in self.knowledge:
+                                new_sentences.append(new_sentence)
+                                changed = True
+
+            self.knowledge.extend(new_sentences)
 
     def make_safe_move(self):
         """
@@ -193,7 +280,11 @@ class MinesweeperAI():
         This function may use the knowledge in self.mines, self.safes
         and self.moves_made, but should not modify any of those values.
         """
-        raise NotImplementedError
+        safe_moves = self.safes - self.moves_made
+        if safe_moves:
+            return safe_moves.pop()
+        else:
+            return None
 
     def make_random_move(self):
         """
@@ -202,4 +293,14 @@ class MinesweeperAI():
             1) have not already been chosen, and
             2) are not known to be mines
         """
-        raise NotImplementedError
+        # all possible moves for the game
+        all_moves = {(i, j) for i in range(self.height) for j in range(self.width)}
+
+        # set of all the moves to avoid
+        avoid_moves = self.moves_made | self.mines
+        random_moves = all_moves - avoid_moves
+
+        if random_moves:
+            return random.choice(list(random_moves))
+        else:
+            return None
